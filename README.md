@@ -329,24 +329,42 @@ After deploy, `gcloud run services describe featurebot` gives you the public URL
 - The Chat app's App URL to `<that-url>/chat-webhook`
 - The GitHub webhook Payload URL to `<that-url>/github-webhook`
 
-### Important: swap SQLite for Postgres before deploying
+### Important: use Supabase/Postgres before deploying
 
-Cloud Run containers are ephemeral — anything written to local disk (including `featurebot_graph.db` and `featurebot_map.db`) disappears on cold start. Before deploying:
+Cloud Run containers are ephemeral — anything written to local disk (including `featurebot_graph.db` and `featurebot_map.db`) disappears on cold start.
 
-1. Create a free Postgres DB on [Neon](https://neon.tech) or [Supabase](https://supabase.com).
-2. In `app/graph/build_graph.py`, replace:
-   ```python
-   from langgraph.checkpoint.sqlite import SqliteSaver
-   memory = SqliteSaver.from_conn_string("featurebot_graph.db")
+The app **automatically uses Postgres** when `DATABASE_URL` starts with `postgres://` or `postgresql://`. Otherwise it falls back to SQLite for local dev.
+
+#### Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open **Project Settings → Database → Connection string → URI** and copy the Postgres URL.
+3. Run the app tables SQL in **SQL Editor** (or let `init_db()` create them on first start):
+
+```sql
+-- See supabase/schema.sql for the full script
+CREATE TABLE IF NOT EXISTS issue_thread_map (
+    repo TEXT NOT NULL,
+    issue_number INTEGER NOT NULL,
+    thread_id TEXT NOT NULL,
+    PRIMARY KEY (repo, issue_number)
+);
+
+CREATE TABLE IF NOT EXISTS thread_repo_map (
+    thread_id TEXT PRIMARY KEY,
+    repo TEXT NOT NULL
+);
+```
+
+4. Set in `.env`:
    ```
-   with:
-   ```python
-   from langgraph.checkpoint.postgres import PostgresSaver
-   memory = PostgresSaver.from_conn_string(settings.DATABASE_URL)
-   memory.setup()  # creates tables on first run
+   DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
    ```
-3. Move `app/db.py`'s thread/issue mapping table to the same Postgres instance too (swap `sqlite3` for `psycopg2`, same get/save interface).
-4. Set `DATABASE_URL` as an env var on Cloud Run pointing to your Neon/Supabase connection string.
+   Use the **Session pooler** (port 6543) or **Direct connection** (port 5432) URL from Supabase.
+
+5. Start the app — LangGraph checkpoint tables are created automatically via `PostgresSaver.setup()` on first run.
+
+6. Set `DATABASE_URL` on Cloud Run alongside your other env vars.
 
 ---
 

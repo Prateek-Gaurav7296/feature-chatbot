@@ -8,6 +8,7 @@ event-driven systems are usually "hub and spoke", not a straight line.
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+from app.config import settings
 from app.graph.state import IssueState
 from app.graph.nodes import (
     parse_request_node,
@@ -33,6 +34,25 @@ def route_event(state: IssueState) -> str:
     if event == "github_closed":
         return "issue_closed"
     return "noop"
+
+
+def _build_checkpointer():
+    url = settings.DATABASE_URL
+    if url.startswith(("postgres://", "postgresql://")):
+        from psycopg_pool import ConnectionPool
+        from langgraph.checkpoint.postgres import PostgresSaver
+
+        pool = ConnectionPool(
+            conninfo=url,
+            max_size=10,
+            kwargs={"autocommit": True, "prepare_threshold": 0},
+        )
+        checkpointer = PostgresSaver(pool)
+        checkpointer.setup()
+        return checkpointer
+
+    memory = SqliteSaver.from_conn_string("featurebot_graph.db")
+    return memory
 
 
 def build_graph():
@@ -69,11 +89,7 @@ def build_graph():
     graph.add_edge("issue_closed", END)
     graph.add_edge("noop", END)
 
-    # SqliteSaver for local dev. Swap for PostgresSaver in production -
-    # see README for the one-line change once you deploy to Cloud Run,
-    # since Cloud Run's filesystem doesn't persist across cold starts.
-    memory = SqliteSaver.from_conn_string("featurebot_graph.db")
-    return graph.compile(checkpointer=memory)
+    return graph.compile(checkpointer=_build_checkpointer())
 
 
 compiled_graph = build_graph()
