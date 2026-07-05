@@ -19,8 +19,17 @@ def init_db():
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS issue_thread_map (
-                issue_number INTEGER PRIMARY KEY,
+                repo TEXT NOT NULL,
+                issue_number INTEGER NOT NULL,
                 thread_id TEXT NOT NULL,
+                PRIMARY KEY (repo, issue_number)
+            )
+            """
+        )
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS thread_repo_map (
+                thread_id TEXT PRIMARY KEY,
                 repo TEXT NOT NULL
             )
             """
@@ -40,15 +49,41 @@ def _conn():
 def save_mapping(issue_number: int, thread_id: str, repo: str):
     with _conn() as c:
         c.execute(
-            "INSERT OR REPLACE INTO issue_thread_map (issue_number, thread_id, repo) VALUES (?, ?, ?)",
-            (issue_number, thread_id, repo),
+            "INSERT OR REPLACE INTO issue_thread_map (repo, issue_number, thread_id) VALUES (?, ?, ?)",
+            (repo, issue_number, thread_id),
         )
 
 
-def get_thread_id(issue_number: int) -> str | None:
+def get_thread_id(repo: str, issue_number: int) -> str | None:
+    """Look up the Chat thread for an issue.
+
+    Keyed by (repo, issue_number) rather than issue_number alone: issue
+    numbers are only unique within a single repo, and with multiple repos
+    now in play, two repos' "#5" would otherwise collide.
+    """
     with _conn() as c:
         row = c.execute(
-            "SELECT thread_id FROM issue_thread_map WHERE issue_number = ?",
-            (issue_number,),
+            "SELECT thread_id FROM issue_thread_map WHERE repo = ? AND issue_number = ?",
+            (repo, issue_number),
+        ).fetchone()
+        return row[0] if row else None
+
+
+def set_thread_repo(thread_id: str, repo: str):
+    with _conn() as c:
+        c.execute(
+            """
+            INSERT INTO thread_repo_map (thread_id, repo) VALUES (?, ?)
+            ON CONFLICT(thread_id) DO UPDATE SET repo=excluded.repo
+            """,
+            (thread_id, repo),
+        )
+
+
+def get_thread_repo(thread_id: str) -> str | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT repo FROM thread_repo_map WHERE thread_id = ?",
+            (thread_id,),
         ).fetchone()
         return row[0] if row else None

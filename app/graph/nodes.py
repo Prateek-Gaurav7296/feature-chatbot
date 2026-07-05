@@ -39,7 +39,7 @@ def parse_request_node(state: IssueState) -> IssueState:
 
 def create_issue_node(state: IssueState) -> IssueState:
     result = github_client.create_issue(
-        title=state["title"], body=state["body"], labels=state.get("labels")
+        repo=state["repo"], title=state["title"], body=state["body"], labels=state.get("labels")
     )
     state["issue_number"] = result["number"]
     state["issue_url"] = result["url"]
@@ -91,7 +91,7 @@ def send_assignment_email_node(state: IssueState) -> IssueState:
 
 def sync_comments_node(state: IssueState) -> IssueState:
     new_comments = github_client.get_new_comments(
-        state["issue_number"], state.get("last_comment_id")
+        state["repo"], state["issue_number"], state.get("last_comment_id")
     )
     for c in new_comments:
         chat_client.post_message(
