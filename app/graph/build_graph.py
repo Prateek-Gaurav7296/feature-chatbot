@@ -6,7 +6,6 @@ just happened. This is the pattern to internalize: LangGraph graphs for
 event-driven systems are usually "hub and spoke", not a straight line.
 """
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite import SqliteSaver
 
 from app.config import settings
 from app.graph.state import IssueState
@@ -51,6 +50,8 @@ def _build_checkpointer():
         checkpointer.setup()
         return checkpointer
 
+    from langgraph.checkpoint.sqlite import SqliteSaver
+
     memory = SqliteSaver.from_conn_string("featurebot_graph.db")
     return memory
 
@@ -92,4 +93,11 @@ def build_graph():
     return graph.compile(checkpointer=_build_checkpointer())
 
 
-compiled_graph = build_graph()
+_compiled_graph = None
+
+
+def get_compiled_graph():
+    global _compiled_graph
+    if _compiled_graph is None:
+        _compiled_graph = build_graph()
+    return _compiled_graph

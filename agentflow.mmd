@@ -1,0 +1,25 @@
+flowchart TD
+
+    Start([Incoming Event])
+
+    Router{"route_event()"}
+
+    Start --> Router
+
+    Router -->|chat_message| ParseRequest
+    Router -->|github_assigned| AskAssigneeEmail
+    Router -->|chat_email_reply| SendAssignmentEmail
+    Router -->|github_comment| SyncComments
+    Router -->|github_closed| IssueClosed
+    Router -->|other| NoOp
+
+    ParseRequest --> CreateIssue
+    CreateIssue --> NotifySlack
+
+    NotifySlack --> End([End])
+
+    AskAssigneeEmail --> End
+    SendAssignmentEmail --> End
+    SyncComments --> End
+    IssueClosed --> End
+    NoOp --> End

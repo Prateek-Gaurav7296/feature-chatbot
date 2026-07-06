@@ -3,7 +3,8 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.config import settings
-from app.clients import github_client, chat_client, email_client
+from app.clients import github_client, email_client
+from app.services.notifier import notify_thread
 from app.graph.state import IssueState
 
 llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=settings.GROQ_API_KEY, temperature=0)
@@ -48,9 +49,9 @@ def create_issue_node(state: IssueState) -> IssueState:
 
 
 def notify_chat_created_node(state: IssueState) -> IssueState:
-    chat_client.post_message(
-        space_name=state["thread_id"],
-        text=(
+    notify_thread(
+        state,
+        (
             f"✅ Created issue #{state['issue_number']}: *{state['title']}*\n"
             f"{state['issue_url']}\n"
             f"Waiting for it to be assigned on GitHub."
@@ -62,9 +63,9 @@ def notify_chat_created_node(state: IssueState) -> IssueState:
 
 def ask_assignee_email_node(state: IssueState) -> IssueState:
     assignee = state.get("assignee", "someone")
-    chat_client.post_message(
-        space_name=state["thread_id"],
-        text=(
+    notify_thread(
+        state,
+        (
             f"🎯 Issue #{state['issue_number']} was just assigned to {assignee}. "
             f"Could you reply with their email so I can notify them?"
         ),
@@ -81,9 +82,9 @@ def send_assignment_email_node(state: IssueState) -> IssueState:
             issue_title=state["title"],
             issue_url=state["issue_url"],
         )
-        chat_client.post_message(
-            space_name=state["thread_id"],
-            text=f"📧 Notified {email} about issue #{state['issue_number']}.",
+        notify_thread(
+            state,
+            f"📧 Notified {email} about issue #{state['issue_number']}.",
         )
     state["status"] = "in_progress"
     return state
@@ -94,18 +95,18 @@ def sync_comments_node(state: IssueState) -> IssueState:
         state["repo"], state["issue_number"], state.get("last_comment_id")
     )
     for c in new_comments:
-        chat_client.post_message(
-            space_name=state["thread_id"],
-            text=f"💬 {c.user.login} commented on #{state['issue_number']}: {c.body}",
+        notify_thread(
+            state,
+            f"💬 {c.user.login} commented on #{state['issue_number']}: {c.body}",
         )
         state["last_comment_id"] = c.id
     return state
 
 
 def issue_closed_node(state: IssueState) -> IssueState:
-    chat_client.post_message(
-        space_name=state["thread_id"],
-        text=f"🎉 Issue #{state['issue_number']} closed: *{state['title']}*",
+    notify_thread(
+        state,
+        f"🎉 Issue #{state['issue_number']} closed: *{state['title']}*",
     )
     state["status"] = "closed"
     return state

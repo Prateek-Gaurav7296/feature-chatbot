@@ -8,6 +8,12 @@ class IssueState(TypedDict, total=False):
     issue_number: Optional[int]
     issue_url: Optional[str]
 
+    # platform context (set from IncomingMessage; persisted by checkpointer)
+    platform: Optional[str]
+    workspace_id: Optional[str]
+    channel_id: Optional[str]
+    thread_ts: Optional[str]
+
     # content
     raw_request: str
     title: str
@@ -23,5 +29,5 @@ class IssueState(TypedDict, total=False):
     last_comment_id: Optional[int]
 
     # event-driven input (set fresh each time we re-invoke the graph)
-    event_type: Optional[str]  # "chat_message" | "github_assigned" | "github_comment" | "chat_email_reply"
+    event_type: Optional[str]
     event_payload: Optional[dict]

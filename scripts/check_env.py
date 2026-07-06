@@ -17,22 +17,22 @@ load_dotenv(ROOT / ".env")
 REQUIRED = {
     "GROQ_API_KEY": "Groq LLM — https://console.groq.com",
     "GITHUB_TOKEN": "GitHub PAT (repo scope) — https://github.com/settings/tokens",
+    "SLACK_BOT_TOKEN": "Slack bot token (xoxb-…) — from OAuth install or app settings",
+    "SLACK_SIGNING_SECRET": "Slack signing secret — Basic Information → App Credentials",
     "RESEND_API_KEY": "Resend email — https://resend.com",
     "EMAIL_FROM": "Sender address on a verified Resend domain",
 }
 
 PROD_RECOMMENDED = {
     "GITHUB_WEBHOOK_SECRET": "GitHub webhook HMAC secret (required in production)",
-    "GOOGLE_CHAT_VERIFICATION_TOKEN": "Google Chat verification token from GCP console",
 }
 
 OPTIONAL = {
-    "GITHUB_REPO": "Fallback repo (owner/repo) for threads that haven't linked one — "
-    "in Chat, send '@FeatureBot repo: owner/repo' instead of setting this",
-}
-
-FILE_CHECKS = {
-    "GOOGLE_SERVICE_ACCOUNT_FILE": "Google Chat service account JSON key",
+    "GITHUB_REPO": "Fallback repo — in Slack, send `repo: owner/repo` in a thread instead",
+    "SLACK_CLIENT_ID": "Slack OAuth — only needed for /slack/oauth/install flow",
+    "SLACK_CLIENT_SECRET": "Slack OAuth client secret",
+    "SLACK_REDIRECT_URI": "OAuth callback URL, e.g. https://<host>/slack/oauth/callback",
+    "DATABASE_URL": "Postgres/Supabase URL for production (default: SQLite)",
 }
 
 
@@ -40,7 +40,7 @@ def _is_set(name: str) -> bool:
     value = os.getenv(name, "").strip()
     if not value:
         return False
-    placeholders = {"yourorg/yourrepo", "bot@yourdomain.com", "bot@example.com"}
+    placeholders = {"bot@yourdomain.com", "bot@example.com"}
     return value not in placeholders
 
 
@@ -72,28 +72,16 @@ def main() -> int:
         if not ok:
             print(f"           → {hint}")
 
-    print()
-    for env_var, hint in FILE_CHECKS.items():
-        path = os.getenv(env_var, "./service_account.json").strip()
-        file_path = ROOT / path if not Path(path).is_absolute() else Path(path)
-        ok = file_path.is_file()
-        status = "OK" if ok else "MISSING"
-        print(f"  [{status}] {env_var} → {file_path}")
-        if not ok:
-            print(f"           → {hint}")
-            missing_required.append(env_var)
-
     print("\n" + "=" * 40)
     if missing_required:
-        print(f"Missing {len(missing_required)} required item(s). See SETUP.md for step-by-step instructions.")
+        print(f"Missing {len(missing_required)} required item(s). See SETUP.md.")
         return 1
 
     print("All required credentials are configured.")
-    print("\nNext steps (external console setup):")
-    print("  1. Register GitHub webhook → https://<public-url>/github-webhook")
-    print("  2. Configure Google Chat app URL → https://<public-url>/chat-webhook")
-    print("  3. Run: uvicorn app.main:app --reload --port 8000")
-    print("  4. Tunnel with ngrok for local testing: ngrok http 8000")
+    print("\nNext steps:")
+    print("  1. Slack app → Event Subscriptions → https://<public-url>/slack/events")
+    print("  2. GitHub webhook → https://<public-url>/github-webhook")
+    print("  3. uvicorn app.main:app --reload --port 8000")
     return 0
 
 

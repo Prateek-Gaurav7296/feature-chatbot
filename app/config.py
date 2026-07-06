@@ -14,9 +14,13 @@ class Settings:
     GITHUB_REPO = os.getenv("GITHUB_REPO", "")
     GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
 
-    # Google Chat
-    GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "./service_account.json")
-    GOOGLE_CHAT_VERIFICATION_TOKEN = os.getenv("GOOGLE_CHAT_VERIFICATION_TOKEN", "")
+    # Slack
+    SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN", "")
+    SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET", "")
+    SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN", "")  # optional — Socket Mode not used
+    SLACK_CLIENT_ID = os.getenv("SLACK_CLIENT_ID", "")
+    SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET", "")
+    SLACK_REDIRECT_URI = os.getenv("SLACK_REDIRECT_URI", "")
 
     # Email
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
